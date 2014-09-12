@@ -1,0 +1,67 @@
+/** css for crossfilter demo only **/
+
+
+.chart {
+  display: inline-block;
+  height: 151px;
+  margin-bottom: 20px;
+}
+
+.reset {
+  padding-left: 1em;
+  font-size: smaller;
+  color: #ccc;
+}
+
+.background.bar {
+  fill: #ccc;
+}
+
+.foreground.bar {
+  fill: #ffbb78;
+}
+
+.axis text {
+  font: 10px sans-serif;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.brush rect.extent {
+  fill: #F2CFAC;
+  fill-opacity: .125;
+}
+
+.brush .resize path {
+  fill: #eee;
+  stroke: #666;
+}
+
+.units {
+  max-width: 100px;
+  float: right;
+  font-size: 12px;
+  border: 0;
+  margin: 0;
+}
+
+.crosshairs {
+  cursor: move;
+  font: 8px sans-serif;
+}
+
+.crosshairs line {
+  stroke: #888;
+}
+
+/* not working... check this */
+#timeline .scroller {
+  width: 1000px;
+  overflow: auto;
+  overflow-y: hidden;
+}
