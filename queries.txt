@@ -32,7 +32,7 @@ CREATE VIEW playbill AS
 	       acts AS acts
 	FROM register_plays JOIN registers ON (register_id = registers.id)
 	                    JOIN plays ON (play_id = plays.id)
-	ORDER BY date, ordering
-  LIMIT 10000;
+  WHERE date > '1740-04-01' AND date <= '1793-03-26'
+	ORDER BY date, ordering;
 
 COPY (SELECT json_agg(playbill) FROM playbill) TO PROGRAM $$ruby -p -e 'gsub(/\\n/, "\n")' > /Users/yorkc/Desktop/MIT/cfrp-dimensional/playbill.json$$;

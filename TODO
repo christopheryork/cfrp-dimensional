@@ -1,8 +1,12 @@
--- make reset button work
+
 -- add some other dimensions
       author
       title
       intersecting date
+
+-- author & title dimensions
+      (should title be nested underneath author?)
+
 -- toggle to switch aggregations
       total receipts
       tickets sold
@@ -10,7 +14,14 @@
       [ avg receipts per day ]
       [ avg ticket sales per day ]
 -- display flip book page for current date
+
+-- gestalt timeline below magnified view
+      [ scrolling doesn't work otherwise ]
+
 -- timeline improvements
+      change to a line graph
       change granularity (years, months, days)
       scroll timeline left/right					DONE
         y axis outside of scroller
+
+-- make reset button work

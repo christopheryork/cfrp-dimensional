@@ -59,6 +59,17 @@
   stroke: #888;
 }
 
+#author {
+  width: 1000px;
+  height: 250px;
+  overflow: auto;
+  overflow-y: auto;
+}
+
+#author text {
+  fill: #777;
+}
+
 /* not working... check this */
 #timeline .scroller {
   width: 1000px;
