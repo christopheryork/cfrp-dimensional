@@ -87,8 +87,11 @@
 
     <!-- Begin crossfilter demo -->
       <div id="charts">
-        <div id="author" class="chart">
-          <div class="title">Author</div>
+        <div id="author1" class="chart">
+          <div class="title">Author 1</div>
+        </div>
+        <div id="author2" class="chart">
+          <div class="title">Author 2</div>
         </div>
         <div id="timeline" class="chart">
           <div class="title">Date<select class="units"></select></div>
@@ -222,12 +225,12 @@
         return {
           add: function(p, v) {
             p.sum += fn(v);
-            p.final = p.sum;
+            p.final = Math.max(0, d3.round(p.sum, 0));
             return p;
           },
           remove: function(p, v) {
             p.sum -= fn(v);
-            p.final = p.sum
+            p.final = Math.max(0, d3.round(p.sum, 0));
             return p;
           },
           init: function() {
@@ -254,10 +257,7 @@
 
     function visualize() {
 
-      if (!sales || !playbill) { console.log("half prepared..."); return; }
-
-      console.log("received data.... proceeding")
-
+      if (!sales || !playbill) { return; }
 
       var sale = crossfilter(sales),
           date = sale.dimension(function(d) { return d.date; }),
@@ -278,6 +278,10 @@
             .rangeBands([0, d3.max([14 * authorAgg.size(), 900])]))
           .y(d3.scale.linear().range([180, 0]))
           .filter([author_extent[0], author_extent[188]]),
+
+        sparseChart()
+            .dimension(author)
+            .group(authorAgg),
 
         timelineChart()
             .dimension(date)
@@ -339,6 +343,101 @@
       playbill = data;
       visualize(); 
     });
+
+function sparseChart() {
+  if (!sparseChart.id) sparseChart.id = 0;
+
+  var margin = {top: 10, right: 30, bottom: 20, left: 10},
+      barHeight = 12,
+      textHeight = 12,
+      height = 200,
+      width = 190,
+      x = d3.scale.linear().range([0, width]),
+      id = sparseChart.id++,
+      dimension,
+      group,
+      size;
+
+  function chart(div) {
+    var commasFormatter = d3.format(",.0f");
+
+    if (!size) {
+      size = group.size();
+    };
+
+    x.domain([0, group.top(1)[0].value.final]);
+
+    var y = function(d) { return d * (barHeight + textHeight); }
+
+    div.each(function() {
+      var div = d3.select(this),
+          g = div.select("g"),
+          data = group.top(size);
+
+      // Create initial chart
+      if (g.empty()) {
+        var scroller = div.append("div")
+              .attr("class", "scroller");
+
+        g = scroller.append("svg")
+              .attr("width", width + margin.left + margin.right)
+              .attr("height", y(size) + margin.top + margin.bottom)
+            .append("g")
+              .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+      };
+
+      var bar_label = g.selectAll(".bar")
+              .data(data, function(d, i) { return i; })
+             .enter().append("g")
+              .attr("class", "foreground bar")
+              .attr("transform", function (d, i) { return "translate(0," + y(i) + ")"; });
+
+      bar_label.append("path")
+              .attr("d", function(d) { return "M0,2H" + x(d.value.final) + "v" + barHeight + "H0";});
+
+      bar_label.append("g")
+                 .attr("transform", "translate(0,0)")
+               .append("text")
+                 .text(function (d) { if (d.key == "Baron") { console.log("Baron = " + d.value.final); } return d.key; });
+
+      function measureAnchor(d) {
+        return x(d.value.final) - 4 < 30 ? "start" : "end";
+      }
+
+      bar_label.append("g")
+              .attr("transform", function(d) {
+                var val = measureAnchor(d) == "end" ? x(d.value.final) - 4 : x(d.value.final) + 4;
+                return "translate(" + val + "," + (textHeight - 1) + ")"; 
+              })
+            .append("text")
+              .attr("class", function(d) { return "measure " + measureAnchor(d); })
+              .attr("x", 0)
+              .attr("y", 0)
+              .attr("text-anchor", function(d) { return measureAnchor(d); })
+              .text(function (d) { return commasFormatter(d.value.final); });
+          
+    });
+  }
+
+  chart.dimension = function(_) {
+    if (!arguments.length) return dimension;
+    dimension = _;
+    return chart;
+  }
+
+  chart.group = function(_) {
+    if (!arguments.length) return group;
+    group = _;
+    return chart;
+  }
+
+  chart.on = function(_) {
+    console.log(_);
+    return chart;
+  }
+
+  return chart;
+}
 
 
 function timelineChart() {

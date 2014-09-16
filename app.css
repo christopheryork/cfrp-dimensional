@@ -59,15 +59,36 @@
   stroke: #888;
 }
 
-#author {
+#author1 {
   width: 1000px;
   height: 250px;
   overflow: auto;
-  overflow-y: auto;
 }
 
-#author text {
+#author1 text {
   fill: #777;
+}
+
+#author2 .scroller {
+  height: 200px;
+  overflow: auto;
+  overflow-x: hidden;
+}
+
+#author2 text {
+  fill: #777;
+  font: 10px sans-serif;
+}
+
+#author2 text.measure.end {
+  fill: #fff;
+  font: 8px sans-serif;
+}
+
+
+#author2 text.measure.start {
+  fill: #777;
+  font: 8px sans-serif;
 }
 
 /* not working... check this */
