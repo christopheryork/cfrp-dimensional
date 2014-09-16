@@ -59,35 +59,24 @@
   stroke: #888;
 }
 
-#author1 {
-  width: 1000px;
-  height: 250px;
-  overflow: auto;
-}
-
-#author1 text {
-  fill: #777;
-}
-
-#author2 .scroller {
+#author .scroller {
   height: 200px;
   overflow: auto;
   overflow-x: hidden;
 }
 
-#author2 text {
+#author text {
   fill: #777;
   font: 10px sans-serif;
 }
 
-#author2 text.measure.end {
-  fill: #fff;
+#author .measure text.start {
+  fill: #777;
   font: 8px sans-serif;
 }
 
-
-#author2 text.measure.start {
-  fill: #777;
+#author .measure text.end {
+  fill: #fff;
   font: 8px sans-serif;
 }
 
