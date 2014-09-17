@@ -87,17 +87,6 @@
     <div class="row content_row">
       <form id="measure_form" class="small-3 columns">
         <div class="title">Measure</div><br/>
-        <!--
-        <label>
-          <input type=radio name="measure" value="performance"> Performances
-        </label>
-        <label>
-          <input type=radio name="measure" value="receipts" checked> Receipts
-        </label>
-        <label>
-          <input type=radio name="measure" value="sales"> Ticket sales
-        </label>
-        -->
       </form>
       <div id="author" class="chart sparse small-3 columns">
         <div class="title">Author 1</div>
@@ -195,26 +184,6 @@
 
       function reduceDistinct(fn) {
         return {
-          add: function(p, v) {
-            var val = fn(v);
-            if (p.counts.has(val)) { p.counts.set(val, p.counts.get(val) + 1);
-            } else {                 p.counts.set(val, 1); };
-            p.final = p.counts.size();
-            return p; },
-          remove: function(p, v) {
-            var val = fn(v);
-            if (p.counts.get(val) == 1) { p.remove(val);
-            } else {                    p.counts.set(val, p.counts.get(val) -1); };
-            p.final = p.counts.size();
-            return p; },
-          init: function() {
-            return { counts: d3.map(), final: 0 };
-          }
-        };
-      }
-
-      function reduceDistinct2(fn) {
-        return {
           add: function (p, d) {
             var val = fn(d);
             if (val in p.counts)
@@ -231,48 +200,41 @@
               return p;
           },
           init: function () {
-              return { counts: {}, final: 42 };
+            var p = {};
+            p.counts = {};
+            p.final = function() { return Object.keys(p.counts).length; };
+            return p;
           }
         }
-      }
-
-      function reduceAvg(fn) {
-        return {
-          add: function(p, v) {
-            p.count++;
-            p.sum += fn(v);
-            p.final = p.sum/p.count;
-            return p;
-          },
-          remove: function(p, v) {
-            p.sum -= fn(v);
-            p.count--;
-            p.final = p.sum/p.count;
-            return p;
-          },
-          init: function() {
-            return { count: 0, sum: 0, final: 0 };
-          }
-        };
       }
 
       function reduceSum(fn) {
         return {
           add: function(p, v) {
             p.sum += fn(v);
-            p.final = Math.max(0, d3.round(p.sum, 0));
             return p;
           },
           remove: function(p, v) {
             p.sum -= fn(v);
-            p.final = Math.max(0, d3.round(p.sum, 0));
             return p;
           },
           init: function() {
-            return { sum: 0, final: 0 };
+            var p = {};
+            p.sum = 0;
+            p.final = function () { return Math.max(0, d3.round(p.sum, 0)); };
+            return p;
           }
         };
       };
+
+      /*
+        sale = crossfilter(sales);
+        date = sale.dimension( function (d) { return d.date; });
+        byYear = date.group(d3.time.year);
+        sum = aggregates[1].reducer;
+        byYear.reduce(sum.add, sum.remove, sum.init);
+        byYear.top(1)[0].value.final();
+      */
 
       function lookupAuthor(date, n, dflt) {
         var pb = playbillIdx.get(date);
@@ -286,9 +248,9 @@
         else    { return dflt; }
       }
 
-      var aggregates = [ { name: "Performances", reducer: reduceDistinct2(function(d) { return d.register_id; }) },
-                         { name: "Receipts",     reducer: reduceSum(function(d)       { return d.sold * d.price; }), unit: "l.", checked: true },
-                         { name: "Sales",        reducer: reduceSum(function(d)       { return d.sold; }) } ];
+      var aggregates = [ { name: "Performances", reducer: reduceDistinct(function(d) { return d.register_id; }) },
+                         { name: "Receipts",     reducer: reduceSum(function(d)      { return d.sold * d.price; }), unit: "l." },
+                         { name: "Sales",        reducer: reduceSum(function(d)      { return d.sold; }), checked: true } ];
 
     // set up crossfilter visualization
 
@@ -308,7 +270,7 @@
               .attr("value", function(d) { return d.name; })
               .property("checked", function(d) { return d.checked; });
 
-      labels.append("span").text(function(d) { return d.name; });
+      labels.append("span").text(function(d) { return d.name + (d.unit ? " (" + d.unit + ")" : ""); });
 
       var checkedMeasure = function() {
         var checked_name = d3.select("#measure_form input:checked").attr("value");
@@ -331,7 +293,7 @@
 
       var updateMeasure = function(agg) {
         [timelineAgg, authorAgg, genreAgg, sectionAgg].forEach(function (grp) {
-          grp.reduce(agg.reducer.add, agg.reducer.remove, agg.reducer.init).order(function (d) { return d.final; });
+          grp.reduce(agg.reducer.add, agg.reducer.remove, agg.reducer.init).order(function (d) { return d.final(); });
         });
       };
 
@@ -444,7 +406,7 @@ function sparseChart() {
     var component = div,
         commasFormatter = d3.format(",.0f");
 
-    x.domain([0, group.top(1)[0].value.final]);
+    x.domain([0, group.top(1)[0].value.final()]);
 
     var y = function(d) { return d * (barHeight + textHeight); }
 
@@ -557,10 +519,10 @@ function sparseChart() {
       };
 
       function measure_info(d) {
-        if (x(d.value.final) - 4 > 30) {
-          return { offset: x(d.value.final) - 4, anchor: "end" };
+        if (x(d.value.final()) - 4 > 30) {
+          return { offset: x(d.value.final()) - 4, anchor: "end" };
         } else {
-          return { offset: x(d.value.final) + 4, anchor: "start" };
+          return { offset: x(d.value.final()) + 4, anchor: "start" };
         }
       }
 
@@ -581,7 +543,7 @@ function sparseChart() {
                  .attr("class", function(d) { return "bar " + (pinned.has(d.key) ? "foreground" : "background"); });
 
       bar.select("path")
-           .attr("d", function(d) { return "M0,2H" + x(d.value.final) + "v" + barHeight + "H0";});
+           .attr("d", function(d) { return "M0,2H" + x(d.value.final()) + "v" + barHeight + "H0";});
 
       bar.select(".author_name text")
            .text(function (d) { return d.key; });
@@ -591,7 +553,7 @@ function sparseChart() {
          .select("text")
            .attr("class", function(d) { return measure_info(d).anchor; })
            .attr("text-anchor", function(d) { return measure_info(d).anchor; })
-           .text(function (d) { return commasFormatter(d.value.final); });
+           .text(function (d) { return commasFormatter(d.value.final()); });
     });
   }
 
@@ -634,10 +596,10 @@ function timelineChart() {
 
     var commasFormatter = d3.format(",.0f");
 
-    y.domain([0, group.top(1)[0].value.final]);
+    y.domain([0, group.top(1)[0].value.final()]);
 
     axis_y.scale(y)
-          .tickFormat(function(d) { return commasFormatter(d) + " l."; })
+          .tickFormat(function(d) { return commasFormatter(d); })
           .ticks(4);
 
     div.each(function() {
@@ -669,9 +631,8 @@ function timelineChart() {
             .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
         g.append("g")
-            .attr("class", "axis")
-            .attr("transform", "translate(" + (width + 10) + ",0)")
-            .call(axis_y);
+            .attr("class", "axis y")
+            .attr("transform", "translate(" + (width + 10) + ",0)");
 
         g.append("clipPath")
             .attr("id", "clip-" + id)
@@ -738,7 +699,11 @@ function timelineChart() {
         }
       }
 
+      // this actually redraws the bars
       g.selectAll(".bar").attr("d", barPath);
+
+      // update the units axis too
+      g.select(".axis.y").call(axis_y);
     });
 
     function barPath(groups) {
@@ -748,7 +713,7 @@ function timelineChart() {
           d;
       while (++i < n) {
         d = groups[i];
-        path.push("M", x(d.key), ",", height, "V", y(d.value.final), "h9V", height);
+        path.push("M", x(d.key), ",", height, "V", y(d.value.final()), "h9V", height);
       }
       return path.join("");
     }
