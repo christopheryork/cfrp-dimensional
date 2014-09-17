@@ -87,6 +87,7 @@
     <div class="row content_row">
       <form id="measure_form" class="small-3 columns">
         <div class="title">Measure</div><br/>
+        <!--
         <label>
           <input type=radio name="measure" value="performance"> Performances
         </label>
@@ -96,6 +97,7 @@
         <label>
           <input type=radio name="measure" value="sales"> Ticket sales
         </label>
+        -->
       </form>
       <div id="author" class="chart sparse small-3 columns">
         <div class="title">Author 1</div>
@@ -211,6 +213,29 @@
         };
       }
 
+      function reduceDistinct2(fn) {
+        return {
+          add: function (p, d) {
+            var val = fn(d);
+            if (val in p.counts)
+              p.counts[val]++;
+            else
+              p.counts[val] = 1;
+            return p;
+          },
+          remove: function (p, d) {
+              var val = fn(d);
+              p.counts[val]--;
+              if (p.counts[val] === 0)
+                delete p.counts[val];
+              return p;
+          },
+          init: function () {
+              return { counts: {}, final: 42 };
+          }
+        }
+      }
+
       function reduceAvg(fn) {
         return {
           add: function(p, v) {
@@ -249,10 +274,6 @@
         };
       };
 
-      function aggregateBy(group, reducer) {
-        return group.reduce(reducer.add, reducer.remove, reducer.init).order(function (d) { return d.final; });
-      };
-
       function lookupAuthor(date, n, dflt) {
         var pb = playbillIdx.get(date);
         if (pb) { return pb[0].author }
@@ -265,9 +286,9 @@
         else    { return dflt; }
       }
 
-      var aggregates = [ { name: "Performances", reducer: reduceDistinct(function(d) { return dateFormat(d.date); }) },
-                         { name: "Receipts",     reducer: reduceSum(function(d)      { return d.sold * d.price; }), unit: "l." },
-                         { name: "Sales",        reducer: reduceSum(function(d)      { return d.sold; }) } ];
+      var aggregates = [ { name: "Performances", reducer: reduceDistinct2(function(d) { return d.register_id; }) },
+                         { name: "Receipts",     reducer: reduceSum(function(d)       { return d.sold * d.price; }), unit: "l.", checked: true },
+                         { name: "Sales",        reducer: reduceSum(function(d)       { return d.sold; }) } ];
 
     // set up crossfilter visualization
 
@@ -275,16 +296,53 @@
 
       if (!sales || !playbill) { return; }
 
+      // the measure selection form & listener
+
+      var labels = d3.select("#measure_form").selectAll("label")
+           .data(aggregates)
+          .enter().append("label")
+
+      labels.append("input")
+              .attr("type", "radio")
+              .attr("name", "measure")
+              .attr("value", function(d) { return d.name; })
+              .property("checked", function(d) { return d.checked; });
+
+      labels.append("span").text(function(d) { return d.name; });
+
+      var checkedMeasure = function() {
+        var checked_name = d3.select("#measure_form input:checked").attr("value");
+        return aggregates.filter(function (d) { return d.name == checked_name; })[0];
+      };
+
+
+      // state for this visualization
+
       var sale = crossfilter(sales),
           date = sale.dimension(function(d) { return d.date; }),
           byYear = date.group(d3.time.year),
-          timelineAgg = aggregateBy(byYear, aggregates[1].reducer),
+          timelineAgg = byYear,
           author = sale.dimension(function(d) { return lookupAuthor(d.date, 0, "Inconnu"); }),
-          authorAgg = aggregateBy(author.group(), aggregates[1].reducer),
+          authorAgg = author.group(),
           genre = sale.dimension(function(d) { return lookupGenre(d.date, 0, "Inconnu"); }),
-          genreAgg = aggregateBy(genre.group(), aggregates[1].reducer),
+          genreAgg = genre.group(),
           section = sale.dimension(function(d) { return d.section; }),
-          sectionAgg = aggregateBy(section.group(), aggregates[1].reducer);
+          sectionAgg = section.group();
+
+      var updateMeasure = function(agg) {
+        [timelineAgg, authorAgg, genreAgg, sectionAgg].forEach(function (grp) {
+          grp.reduce(agg.reducer.add, agg.reducer.remove, agg.reducer.init).order(function (d) { return d.final; });
+        });
+      };
+
+      // prime reducers with the default checked measure
+      updateMeasure(checkedMeasure());
+      d3.select("#measure_form").on("change", function () {
+        var agg = checkedMeasure();
+        console.log( "changing to " + agg.name);
+        updateMeasure(agg);
+        renderAll();
+      });
 
       var charts = [
 
@@ -307,7 +365,6 @@
           .x(d3.time.scale()
                     .domain(d3.extent(sales, function(d) { return d.date; }))
                     .rangeRound([0, d3.max([14 * timelineAgg.size(), 900])]))
-          .filter([new Date(1765, 1, 1), new Date(1770, 12, 31)])
 
       ];
 

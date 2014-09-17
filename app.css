@@ -5,6 +5,10 @@
   margin-top: 40px;
 }
 
+#measure_form span {
+  margin-left: 5px;
+}
+
 
 .chart {
   display: inline-block;
