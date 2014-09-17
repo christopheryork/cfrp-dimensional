@@ -1,5 +1,10 @@
 /** css for crossfilter demo only **/
 
+/** not sure why this is needed. foundation should be clearing rows. **/
+#timeline {
+  margin-top: 40px;
+}
+
 
 .chart {
   display: inline-block;
@@ -19,6 +24,10 @@
 
 .foreground.bar {
   fill: #ffbb78;
+}
+
+.bar {
+  cursor: pointer;
 }
 
 .axis text {
@@ -59,25 +68,46 @@
   stroke: #888;
 }
 
-#author .scroller {
+.chart.sparse .scroller {
   height: 200px;
   overflow: auto;
   overflow-x: hidden;
 }
 
-#author text {
+.chart.sparse .mode {
+  fill: #777;
+  margin: 2px;
+  font: 10px sans-serif;
+  float:right;
+  cursor: pointer;
+}
+
+.chart.sparse text {
   fill: #777;
   font: 10px sans-serif;
 }
 
-#author .measure text.start {
+.chart.sparse .measure text.start {
   fill: #777;
   font: 8px sans-serif;
 }
 
-#author .measure text.end {
+.chart.sparse .measure text.end {
   fill: #fff;
   font: 8px sans-serif;
+}
+
+.foreground.bar .preview {
+  display: none;
+}
+
+.preview.active {
+  fill: #ffbb78;
+}
+
+.preview {
+  stroke: none;
+  fill: #aaa;
 }
 
 /* not working... check this */

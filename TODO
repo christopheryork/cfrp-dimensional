@@ -1,11 +1,12 @@
+-- make mouseover preview only on eye icon
+-- scroll to top of dimension on toggle
+-- make reset button work
 
 -- add some other dimensions
-      author
-      title
+      author                                                DONE
+      title                                                 NOT TO DO
       intersecting date
-
--- author & title dimensions
-      (should title be nested underneath author?)
+      change section to use Jeff's aggregates
 
 -- toggle to switch aggregations
       total receipts
@@ -23,5 +24,3 @@
       change granularity (years, months, days)
       scroll timeline left/right					DONE
         y axis outside of scroller
-
--- make reset button work

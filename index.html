@@ -81,27 +81,39 @@
 	  </li>
   	</ul>  
   
-  <div class="row content_row">
-  <!--Begin main content area-->
-  	<div class="small-12 columns">
 
-    <!-- Begin crossfilter demo -->
-      <div id="charts">
-        <div id="author" class="chart">
-          <div class="title">Author</div>
-        </div>
+  <!--Begin main content area-->
+  <div id="charts">
+    <div class="row content_row">
+      <form id="measure_form" class="small-3 columns">
+        <div class="title">Measure</div><br/>
+        <label>
+          <input type=radio name="measure" value="performance"> Performances
+        </label>
+        <label>
+          <input type=radio name="measure" value="receipts" checked> Receipts
+        </label>
+        <label>
+          <input type=radio name="measure" value="sales"> Ticket sales
+        </label>
+      </form>
+      <div id="author" class="chart sparse small-3 columns">
+        <div class="title">Author 1</div>
+      </div>
+      <div id="genre" class="chart sparse small-3 columns">
+        <div class="title">Genre 1</div>
+      </div>
+      <div id="section" class="chart sparse small-3 columns">
+        <div class="title">Section</div>
+      </div>
+    </div>
+    <div class="row content_row">
+      <div class="small-12 columns">
         <div id="timeline" class="chart">
-          <div class="title">Date<select class="units"></select></div>
+          <div class="title">Date</div>
         </div>
       </div>
-
-<!--
-  		<article>
-  		<h3 class="main_content">Content intro.</h3> 
-  		 	<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce quis hendrerit est. Cras et metus sed eros porta adipiscing in quis velit. Suspendisse ut tincidunt mi. Integer nisl nibh, tempor eget enim at, fringilla bibendum risus. Vivamus volutpat tincidunt aliquam. Donec auctor porta risus, non sodales nibh scelerisque ut. Nullam aliquet leo a leo placerat, sed interdum sem egestas.</p>
-	  	</article>
--->
-  	</div>
+    </div>
  	</div>
   	<!--End main content area-->
 
@@ -170,6 +182,7 @@
   <script src="d3.min.js"></script>
 
   <script>
+    "use strict";
     $(document).foundation();
 
     var dateFormat = d3.time.format('%Y-%m-%d');
@@ -246,6 +259,12 @@
         else    { return dflt; }
       }
 
+      function lookupGenre(date, n, dflt) {
+        var pb = playbillIdx.get(date);
+        if (pb) { return pb[0].genre }
+        else    { return dflt; }
+      }
+
       var aggregates = [ { name: "Performances", reducer: reduceDistinct(function(d) { return dateFormat(d.date); }) },
                          { name: "Receipts",     reducer: reduceSum(function(d)      { return d.sold * d.price; }), unit: "l." },
                          { name: "Sales",        reducer: reduceSum(function(d)      { return d.sold; }) } ];
@@ -261,24 +280,32 @@
           byYear = date.group(d3.time.year),
           timelineAgg = aggregateBy(byYear, aggregates[1].reducer),
           author = sale.dimension(function(d) { return lookupAuthor(d.date, 0, "Inconnu"); }),
-          authorAgg = aggregateBy(author.group(), aggregates[1].reducer);
-
-      var date_extent = d3.extent(sales, function(d) { return d.date; }),
-          author_extent = authorAgg.all().map(function (d) { return d.key; });
+          authorAgg = aggregateBy(author.group(), aggregates[1].reducer),
+          genre = sale.dimension(function(d) { return lookupGenre(d.date, 0, "Inconnu"); }),
+          genreAgg = aggregateBy(genre.group(), aggregates[1].reducer),
+          section = sale.dimension(function(d) { return d.section; }),
+          sectionAgg = aggregateBy(section.group(), aggregates[1].reducer);
 
       var charts = [
 
         sparseChart()
-//            .monitor(8)
             .dimension(author)
             .group(authorAgg),
+
+        sparseChart()
+            .dimension(genre)
+            .group(genreAgg),
+
+        sparseChart()
+            .dimension(section)
+            .group(sectionAgg),
 
         timelineChart()
             .dimension(date)
             .group(timelineAgg)
             .round(d3.time.year)
           .x(d3.time.scale()
-                    .domain(date_extent)
+                    .domain(d3.extent(sales, function(d) { return d.date; }))
                     .rangeRound([0, d3.max([14 * timelineAgg.size(), 900])]))
           .filter([new Date(1765, 1, 1), new Date(1770, 12, 31)])
 
@@ -337,7 +364,7 @@
 function sparseChart() {
   if (!sparseChart.id) sparseChart.id = 0;
 
-  var margin = {top: 10, right: 30, bottom: 20, left: 10},
+  var margin = {top: 10, right: 30, bottom: 20, left: 0},
       barHeight = 12,
       textHeight = 12,
       height = 200,
@@ -346,14 +373,19 @@ function sparseChart() {
       id = sparseChart.id++,
       dimension,
       group,
-      monitor;
+      preview = false,
+      pinned = d3.set(),
+      alphaNum = false,
+      event_ = d3.dispatch("brush", "brushend");
+
+  function filterPins(d) {
+    return pinned.has(d) || (preview ? d === preview : pinned.empty());
+//    return preview ? (d === preview) : (pinned.has(d) || pinned.empty());
+  }
 
   function chart(div) {
-    var commasFormatter = d3.format(",.0f");
-
-    if (!monitor) {
-      monitor = group.size();
-    };
+    var component = div,
+        commasFormatter = d3.format(",.0f");
 
     x.domain([0, group.top(1)[0].value.final]);
 
@@ -361,25 +393,100 @@ function sparseChart() {
 
     div.each(function() {
       var div = d3.select(this),
-          g = div.select("g"),
-          data = group.top(monitor);
+          g = div.select("g.results"),
+//          g_pinned = div.select("g.pinned"),
+          data = [];
+
+      // a hairy way to resort the results so the pinned items rise to the top
+      var pins_seen = 0,
+          raw_data = alphaNum ? group.all() : group.top(group.size());
+      raw_data.forEach(function (d, i) {
+        if (pinned.has(d.key)) {
+          data[pins_seen] = d;
+          pins_seen += 1;
+        } else {
+          data[pinned.size() + i - pins_seen] = d;
+        }
+      });
 
       // Create initial chart
       if (g.empty()) {
+
+        var $mode = div.select(".title").append("span")
+            .attr("class", "mode")
+            .on("click", function () { alphaNum = !alphaNum; chart(component); });
+
+/*
+        // set up the pinned / selected list
+        g_pinned = div.append("svg")
+                       .attr("width", width + margin.left + margin.right)
+                       .attr("height", y(pinned.size()) + margin.top)
+                     .append("g")
+                       .attr("class", "pinned")
+                       .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+*/
+        // set up the normal results list
+        var bar = g.selectAll(".bar")
+             .data(data)
+           .enter().append("g")
+             .attr("class", "background bar")
+             .attr("transform", function (d, i) { return "translate(0," + y(i) + ")"; });
+
         var scroller = div.append("div")
               .attr("class", "scroller");
 
         g = scroller.append("svg")
               .attr("width", width + margin.left + margin.right)
-              .attr("height", y(monitor) + margin.top + margin.bottom)
+              .attr("height", y(group.size()) + margin.bottom)
             .append("g")
+              .attr("class", "results")
               .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
         var bar = g.selectAll(".bar")
              .data(data)
            .enter().append("g")
-             .attr("class", "foreground bar")
+             .attr("class", "background bar")
              .attr("transform", function (d, i) { return "translate(0," + y(i) + ")"; });
+
+        var preview_circle = bar.append("circle")
+             .attr("class", "preview")
+             .attr("cx", x.range()[1])
+             .attr("cy", -4)
+             .attr("r", 3);
+
+        preview_circle.on("mouseover", function (d) {
+          preview_circle.attr("class", "preview");
+          d3.select(this).attr("class", "preview active");
+          preview = d.key;
+          dimension.filterAll();
+          dimension.filterFunction(filterPins);
+          event_.brush();
+        });
+
+        preview_circle.on("mouseout", function (d) {
+          // wait 2 seconds, then if no new preview set, return to default filters
+          var old_preview = preview;
+          window.setTimeout(function () {
+            if (preview == old_preview) {
+               preview_circle.attr("class", "preview");
+               preview = false;
+               dimension.filterAll();
+               dimension.filterFunction(filterPins);
+               event_.brushend();
+            }
+          }, 1000);
+        });
+
+        bar.on("click", function (d) {
+          if (pinned.has(d.key)) {
+            pinned.remove(d.key);
+          } else {
+            pinned.add(d.key);
+          }
+          dimension.filterAll();
+          dimension.filterFunction(filterPins);
+          event_.brushend();
+        });
 
         bar.append("path");
         bar.append("g")
@@ -401,8 +508,20 @@ function sparseChart() {
       }
 
       // adjust for live values
+      div.select(".mode").text(alphaNum ? "a-z" : "1-9");
+
+/*
+      // pinned area
+      g_pinned.selectAll(".bar")
+          .data(pinned)
+        .append("g")
+          .attr("class", "foreground bar")
+          .attr("transform", function (d, i) { return "translate(0," + y(i) + ")"; });
+*/
+      // results area
       var bar = g.selectAll(".bar")
-                 .data(data);
+                   .data(data)
+                 .attr("class", function(d) { return "bar " + (pinned.has(d.key) ? "foreground" : "background"); });
 
       bar.select("path")
            .attr("d", function(d) { return "M0,2H" + x(d.value.final) + "v" + barHeight + "H0";});
@@ -419,15 +538,11 @@ function sparseChart() {
     });
   }
 
-  chart.monitor = function(_) {
-    if (!arguments.length) return monitor;
-    monitor = _;
-    return chart;
-  }
-
   chart.dimension = function(_) {
     if (!arguments.length) return dimension;
     dimension = _;
+    dimension.filterAll();
+    dimension.filterFunction(filterPins);
     return chart;
   }
 
@@ -437,12 +552,7 @@ function sparseChart() {
     return chart;
   }
 
-  chart.on = function(_) {
-    console.log(_);
-    return chart;
-  }
-
-  return chart;
+  return d3.rebind(chart, event_, "on");
 }
 
 
@@ -518,6 +628,8 @@ function timelineChart() {
             .attr("class", function(d) { return d + " bar"; })
             .datum(group.all());
 
+/* bar for previewing flip books
+
         var crosshairs = g.selectAll(".crosshairs")
             .data([new Date(1770, 7, 14)])
           .enter().append("g")
@@ -536,6 +648,7 @@ function timelineChart() {
               .attr("dy", "-.4em")
               .style("text-anchor", "start")
               .text(dateFormat);
+*/
 
         g.selectAll(".foreground.bar")
             .attr("clip-path", "url(#clip-" + id + ")");
