@@ -253,11 +253,19 @@
         else    { return dflt; }
       }
 
+      function decade(date) {
+        var rounded = d3.time.year(date),
+            by10 = d3.round(date.getFullYear(), -1);
+        rounded.setFullYear(by10);
+        return rounded;
+      }
+
       var aggregates = [ { name: "Performances", reducer: reduceDistinct(function(d) { return d.register_id; }) },
                          { name: "Receipts",     reducer: reduceSum(function(d)      { return d.sold * d.price; }), unit: "l." },
                          { name: "Sales",        reducer: reduceSum(function(d)      { return d.sold; }), checked: true } ];
 
-      var granularities = [ { name: "Year", group: d3.time.year, ticks: [d3.time.year, 5], checked: true }, 
+      var granularities = [ { name: "Decade", group: decade, ticks: [d3.time.year, 10] },
+                            { name: "Year", group: d3.time.year, ticks: [d3.time.year, 5], checked: true },
                             { name: "Month", group: d3.time.month, ticks: [d3.time.month, 4] }, 
                             { name: "Week", group: d3.time.week, ticks: [d3.time.month, 1] } ];
 
@@ -349,11 +357,6 @@
 
         timelineChart()
             .dimension(date)
-//            .baseline(timelineAggs[0])
-            .group(timelineAggs[0])
-          .x(d3.time.scale()
-                    .domain(d3.extent(sales, function(d) { return d.date; }))
-                    .rangeRound([0, d3.max([14 * timelineAggs[0].size(), 900])]))
 
       ];
 
@@ -365,15 +368,18 @@
         // TODO.  better way to reference timeline
         // TODO.... now we're getting REALLY messy...
         var agg = timelineAggs[agg_index];
+        var round = granularities[agg_index].group;
         var tickInfo = granularities[agg_index].ticks;
         var timeline = charts[3];
         timeline.group(agg).x(d3.time.scale()
-                    .domain(d3.extent(sales, function(d) { return d.date; }))
-                    .rangeRound([0, d3.max([14 * agg.size(), 900])])).ticks(tickInfo[0], tickInfo[1]);
+                                .domain(d3.extent(sales, function(d) { return d.date; }))
+                                .rangeRound([0, d3.max([14 * agg.size(), 900])]))
+                .ticks(tickInfo[0], tickInfo[1])
+                .round(round);
       };
 
       // prime granularity
-//      updateGranularity(checkedGranularity());
+      updateGranularity(checkedGranularity());
       d3.select("#granularity_form").on("change", function () {
         var i = checkedGranularity();
         updateGranularity(i);
