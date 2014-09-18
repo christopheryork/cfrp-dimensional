@@ -9,6 +9,13 @@ form span {
   margin-left: 5px;
 }
 
+form label {
+  height: 20px;
+}
+
+form {
+  margin-bottom: 10px;
+}
 
 .chart {
   display: inline-block;

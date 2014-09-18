@@ -1,19 +1,17 @@
--- make mouseover preview only on eye icon
--- scroll to top of dimension on toggle
+-- make mouseover preview only on eye icon                  DONE
+-- scroll to top of dimension on toggle                     DONE
 -- make reset button work
 
 -- add some other dimensions
       author                                                DONE
       title                                                 NOT TO DO
       intersecting date
-      change section to use Jeff's aggregates
+      change section to use Jeff's aggregates               DONE
 
--- toggle to switch aggregations
-      total receipts
-      tickets sold
-      performances
+-- toggle to switch aggregations                            DONE
       [ avg receipts per day ]
       [ avg ticket sales per day ]
+
 -- display flip book page for current date
 
 -- gestalt timeline below magnified view
@@ -21,6 +19,6 @@
 
 -- timeline improvements
       change to a line graph
-      change granularity (years, months, days)
+      change granularity (years, months, days)              DONE
       scroll timeline left/right					DONE
         y axis outside of scroller

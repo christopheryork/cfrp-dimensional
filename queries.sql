@@ -8,6 +8,7 @@ DROP VIEW sales;
 CREATE VIEW sales AS
   SELECT ticket_sales.id AS id,
          date AS date,
+         weekday AS weekday,
          registers.id AS register_id,
          total_sold AS sold,
          seating_categories.name AS raw_section,

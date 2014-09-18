@@ -85,7 +85,7 @@
   <!--Begin main content area-->
   <div id="charts">
     <div class="row content_row">
-      <div class="small-3 columns">
+      <div class="small-2 columns">
         <form id="measure_form">
           <div class="title">Measure</div><br/>
         </form>
@@ -94,13 +94,16 @@
         </form>
       </div>
       <div id="author" class="chart sparse small-3 columns">
-        <div class="title">Author 1</div>
+        <div class="title">Auteur 1</div>
       </div>
       <div id="genre" class="chart sparse small-3 columns">
         <div class="title">Genre 1</div>
       </div>
-      <div id="section" class="chart sparse small-3 columns">
-        <div class="title">Section</div>
+      <div id="section" class="chart sparse small-2 columns">
+        <div class="title">Place</div>
+      </div>
+      <div id="weekday" class="chart sparse small-2 columns">
+        <div class="title">Jour de la semaine</div>
       </div>
     </div>
     <div class="row content_row">
@@ -260,14 +263,14 @@
         return rounded;
       }
 
-      var aggregates = [ { name: "Performances", reducer: reduceDistinct(function(d) { return d.register_id; }) },
-                         { name: "Receipts",     reducer: reduceSum(function(d)      { return d.sold * d.price; }), unit: "l." },
-                         { name: "Sales",        reducer: reduceSum(function(d)      { return d.sold; }), checked: true } ];
+      var aggregates = [ { name: "Représentation", reducer: reduceDistinct(function(d) { return d.register_id; }), checked: true },
+                         { name: "Recettes",     reducer: reduceSum(function(d)      { return d.sold * d.price; }), unit: "l." },
+                         { name: "Billets vendus",        reducer: reduceSum(function(d)      { return d.sold; }) } ];
 
-      var granularities = [ { name: "Decade", group: decade, ticks: [d3.time.year, 10] },
-                            { name: "Year", group: d3.time.year, ticks: [d3.time.year, 5], checked: true },
-                            { name: "Month", group: d3.time.month, ticks: [d3.time.month, 4] }, 
-                            { name: "Week", group: d3.time.week, ticks: [d3.time.month, 1] } ];
+      var granularities = [ { name: "Décennie", group: decade, ticks: [d3.time.year, 10] },
+                            { name: "Anée", group: d3.time.year, ticks: [d3.time.year, 5], checked: true },
+                            { name: "Mois", group: d3.time.month, ticks: [d3.time.month, 4] }, 
+                            { name: "Semaine", group: d3.time.week, ticks: [d3.time.month, 1] } ];
 
     // set up crossfilter visualization
 
@@ -324,10 +327,13 @@
           genreAgg = genre.group(),
 
           section = sale.dimension(function(d) { return d.section; }),
-          sectionAgg = section.group();
+          sectionAgg = section.group(),
+
+          weekday = sale.dimension(function(d) { return d.weekday; }),
+          weekdayAgg = weekday.group();
 
       var updateMeasure = function(agg) {
-        [authorAgg, genreAgg, sectionAgg].concat(timelineAggs).forEach(function (grp) {
+        [authorAgg, genreAgg, sectionAgg, weekdayAgg].concat(timelineAggs).forEach(function (grp) {
           grp.reduce(agg.reducer.add, agg.reducer.remove, agg.reducer.init).order(function (d) { return d.final(); });
         });
       };
@@ -353,7 +359,18 @@
 
         sparseChart()
             .dimension(section)
-            .group(sectionAgg),
+            .group(sectionAgg)
+            .width(130),
+
+        sparseChart()
+            .dimension(weekday)
+            .group(weekdayAgg)
+            .order(function (a, b) {
+              // not clear why weekdayFormat.parse always returns mondays, and mangles other aspects...
+              var keyWD = { Lundi: 1, Mardi: 2, Mercredi: 3, Jeudi: 4, Vendredi: 5, Samedi: 6, Dimanche: 7 };
+              return keyWD[a] - keyWD[b];
+            })
+            .width(110),
 
         timelineChart()
             .dimension(date)
@@ -370,7 +387,7 @@
         var agg = timelineAggs[agg_index];
         var round = granularities[agg_index].group;
         var tickInfo = granularities[agg_index].ticks;
-        var timeline = charts[3];
+        var timeline = charts[4];
         timeline.group(agg).x(d3.time.scale()
                                 .domain(d3.extent(sales, function(d) { return d.date; }))
                                 .rangeRound([0, d3.max([14 * agg.size(), 900])]))
@@ -442,7 +459,7 @@
 function sparseChart() {
   if (!sparseChart.id) sparseChart.id = 0;
 
-  var margin = {top: 10, right: 30, bottom: 20, left: 0},
+  var margin = {top: 10, right: 10, bottom: 10, left: 0},
       barHeight = 12,
       textHeight = 12,
       height = 200,
@@ -453,6 +470,7 @@ function sparseChart() {
       group,
       preview = false,
       pinned = d3.set(),
+      order,
       alphaNum = false,
       event_ = d3.dispatch("brush", "brushend");
 
@@ -477,7 +495,16 @@ function sparseChart() {
 
       // a hairy way to resort the results so the pinned items rise to the top
       var pins_seen = 0,
-          raw_data = alphaNum ? group.all() : group.top(group.size());
+          raw_data;
+
+      if (order) {
+        raw_data = group.all().sort(function(a, b) { return order(a.key, b.key); });
+      } else if (alphaNum) {
+        raw_data = group.all();
+      } else {
+        raw_data = group.top(group.size());
+      }
+
       raw_data.forEach(function (d, i) {
         if (pinned.has(d.key)) {
           data[pins_seen] = d;
@@ -490,9 +517,11 @@ function sparseChart() {
       // Create initial chart
       if (g.empty()) {
 
-        var $mode = div.select(".title").append("span")
-            .attr("class", "mode")
-            .on("click", function () { alphaNum = !alphaNum; chart(component); });
+        if (!order) {
+          div.select(".title").append("span")
+              .attr("class", "mode")
+              .on("click", function () { alphaNum = !alphaNum; chart(component); });
+        }
 
 /*
         // set up the pinned / selected list
@@ -579,7 +608,7 @@ function sparseChart() {
       };
 
       function measure_info(d) {
-        if (x(d.value.final()) - 4 > 30) {
+        if (x(d.value.final()) - 4 > 35) {
           return { offset: x(d.value.final()) - 4, anchor: "end" };
         } else {
           return { offset: x(d.value.final()) + 4, anchor: "start" };
@@ -587,7 +616,9 @@ function sparseChart() {
       }
 
       // adjust for live values
-      div.select(".mode").text(alphaNum ? "a-z" : "1-9");
+      if (!order) {
+        div.select(".mode").text(alphaNum ? "a-z" : "1-9");
+      }
 
 /*
       // pinned area
@@ -628,6 +659,19 @@ function sparseChart() {
   chart.group = function(_) {
     if (!arguments.length) return group;
     group = _;
+    return chart;
+  }
+
+  chart.width = function(_) {
+    if (!arguments.length) return width;
+    width = _;
+    x = d3.scale.linear().range([0, width]);
+    return chart;
+  }
+
+  chart.order = function(_) {
+    if (!arguments.length) return order;
+    order = _;
     return chart;
   }
 
