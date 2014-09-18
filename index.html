@@ -85,9 +85,14 @@
   <!--Begin main content area-->
   <div id="charts">
     <div class="row content_row">
-      <form id="measure_form" class="small-3 columns">
-        <div class="title">Measure</div><br/>
-      </form>
+      <div class="small-3 columns">
+        <form id="measure_form">
+          <div class="title">Measure</div><br/>
+        </form>
+        <form id="granularity_form">
+          <div class="title">Timeline</div><br/>
+        </form>
+      </div>
       <div id="author" class="chart sparse small-3 columns">
         <div class="title">Author 1</div>
       </div>
@@ -252,6 +257,10 @@
                          { name: "Receipts",     reducer: reduceSum(function(d)      { return d.sold * d.price; }), unit: "l." },
                          { name: "Sales",        reducer: reduceSum(function(d)      { return d.sold; }), checked: true } ];
 
+      var granularities = [ { name: "Year", group: d3.time.year, ticks: [d3.time.year, 5], checked: true }, 
+                            { name: "Month", group: d3.time.month, ticks: [d3.time.month, 4] }, 
+                            { name: "Week", group: d3.time.week, ticks: [d3.time.month, 1] } ];
+
     // set up crossfilter visualization
 
     function visualize() {
@@ -260,17 +269,17 @@
 
       // the measure selection form & listener
 
-      var labels = d3.select("#measure_form").selectAll("label")
+      var agg_labels = d3.select("#measure_form").selectAll("label")
            .data(aggregates)
-          .enter().append("label")
+          .enter().append("label");
 
-      labels.append("input")
+      agg_labels.append("input")
               .attr("type", "radio")
               .attr("name", "measure")
               .attr("value", function(d) { return d.name; })
               .property("checked", function(d) { return d.checked; });
 
-      labels.append("span").text(function(d) { return d.name + (d.unit ? " (" + d.unit + ")" : ""); });
+      agg_labels.append("span").text(function(d) { return d.name + (d.unit ? " (" + d.unit + ")" : ""); });
 
       var checkedMeasure = function() {
         var checked_name = d3.select("#measure_form input:checked").attr("value");
@@ -278,21 +287,39 @@
       };
 
 
+      // the granularity form & listener
+
+      var gran_labels = d3.select("#granularity_form").selectAll("label")
+           .data(granularities)
+          .enter().append("label");
+
+      gran_labels.append("input")
+              .attr("type", "radio")
+              .attr("name", "granularity")
+              .attr("value", function(d, i) { return i; })
+              .property("checked", function(d) { return d.checked; });
+
+      gran_labels.append("span").text(function(d) { return d.name; });
+
+
       // state for this visualization
 
       var sale = crossfilter(sales),
+
           date = sale.dimension(function(d) { return d.date; }),
-          byYear = date.group(d3.time.year),
-          timelineAgg = byYear,
+          timelineAggs = granularities.map(function (agg) { return date.group(agg.group); }),
+
           author = sale.dimension(function(d) { return lookupAuthor(d.date, 0, "Inconnu"); }),
           authorAgg = author.group(),
+
           genre = sale.dimension(function(d) { return lookupGenre(d.date, 0, "Inconnu"); }),
           genreAgg = genre.group(),
+
           section = sale.dimension(function(d) { return d.section; }),
           sectionAgg = section.group();
 
       var updateMeasure = function(agg) {
-        [timelineAgg, authorAgg, genreAgg, sectionAgg].forEach(function (grp) {
+        [authorAgg, genreAgg, sectionAgg].concat(timelineAggs).forEach(function (grp) {
           grp.reduce(agg.reducer.add, agg.reducer.remove, agg.reducer.init).order(function (d) { return d.final(); });
         });
       };
@@ -322,13 +349,39 @@
 
         timelineChart()
             .dimension(date)
-            .group(timelineAgg)
-            .round(d3.time.year)
+//            .baseline(timelineAggs[0])
+            .group(timelineAggs[0])
           .x(d3.time.scale()
                     .domain(d3.extent(sales, function(d) { return d.date; }))
-                    .rangeRound([0, d3.max([14 * timelineAgg.size(), 900])]))
+                    .rangeRound([0, d3.max([14 * timelineAggs[0].size(), 900])]))
 
       ];
+
+      var checkedGranularity = function() {
+        return d3.select("#granularity_form input:checked").attr("value");
+      };
+
+      var updateGranularity = function(agg_index) {
+        // TODO.  better way to reference timeline
+        // TODO.... now we're getting REALLY messy...
+        var agg = timelineAggs[agg_index];
+        var tickInfo = granularities[agg_index].ticks;
+        var timeline = charts[3];
+        timeline.group(agg).x(d3.time.scale()
+                    .domain(d3.extent(sales, function(d) { return d.date; }))
+                    .rangeRound([0, d3.max([14 * agg.size(), 900])])).ticks(tickInfo[0], tickInfo[1]);
+      };
+
+      // prime granularity
+//      updateGranularity(checkedGranularity());
+      d3.select("#granularity_form").on("change", function () {
+        var i = checkedGranularity();
+        updateGranularity(i);
+        d3.select("#timeline").html("");
+        renderAll();
+      });
+
+      // set up rest of chart
 
       var chart = d3.selectAll(".chart")
         .data(charts)
@@ -774,6 +827,11 @@ function timelineChart() {
       brush.x(x);
       return chart;
     };
+
+    chart.ticks = function(a, b) {
+      axis_x.ticks(a, b);
+      return chart;
+    }
 
     chart.y = function(_) {
       if (!arguments.length) return y;

@@ -1,11 +1,11 @@
 /** css for crossfilter demo only **/
 
-/** not sure why this is needed. foundation should be clearing rows. **/
+/** not sure why this is needed. foundation should be clearing rows.
 #timeline {
   margin-top: 40px;
-}
+} **/
 
-#measure_form span {
+form span {
   margin-left: 5px;
 }
 
