@@ -81,10 +81,10 @@
     <div class="row content_row">
       <div class="small-2 columns">
         <form id="measure_form">
-          <div class="title">Mesure</div><br/>
+          <div class="title">Mesure</div>
         </form>
         <form id="granularity_form">
-          <div class="title">Timeline</div><br/>
+          <div class="title">Timeline</div>
         </form>
       </div>
       <div id="author" class="chart sparse small-3 columns">
@@ -742,6 +742,13 @@ function timelineChart() {
       group,
       round;
 
+  var customTimeFormat = d3.time.format.multi([
+    ["%a %d", function(d) { return d.getDay() && d.getDate() != 1; }],
+    ["%b %d", function(d) { return d.getDate() != 1; }],
+    ["%B", function(d) { return d.getMonth(); }],
+    ["%Y", function() { return true; }]
+  ]);
+
   function chart(div) {
     var width = x.range()[1],
         height = y.range()[0];
@@ -753,6 +760,8 @@ function timelineChart() {
     axis_y.scale(y)
           .tickFormat(function(d) { return commasFormatter(d); })
           .ticks(4);
+
+    axis_x.tickFormat(customTimeFormat);
 
     div.each(function() {
       var div = d3.select(this),

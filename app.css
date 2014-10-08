@@ -15,6 +15,10 @@
   text-transform: uppercase;
 }
 
+.title {
+  margin-bottom: 5px;
+}
+
 form span {
   margin-left: 5px;
 }
