@@ -27,7 +27,6 @@
   
     <nav class="top-bar" data-topbar>
 
-
     <section class="top-bar-section">
       <!-- Right Nav Section -->
       
@@ -65,29 +64,24 @@
   </div>
   
   </div>
-  
-  
-   <ul class="hero-orbit" data-orbit data-options="slide_number:false;navigation_arrows:false;timer_show_progress_bar:false;bullets:false;timer:false;swipe:false;">
-	  	<li>
-	    <div class="orbit-image" style="background-image: url('img/project-history-image-2.jpg');"></div>
-	    <div class="orbit-caption">
-	    	<div class="row">
-	    		<div class="small-9 columns hero-captions">
-					<h6>Multi-dimensional analysis</h6>
-					<h1>Demo</h1>
-				</div>
-			</div>
-	    </div>
-	  </li>
-  	</ul>  
-  
+
+  <div class="titlebar">
+    <div class="row hero-captions">
+      <div class="medium-8 columns"></div>
+      <div class="medium-4 columns">
+        <h1>Demo</h1>
+        <h6>Multi-dimensional analysis</h6>
+        <div id="progressbar"></div>
+      </div>
+    </div>
+  </div>
 
   <!--Begin main content area-->
   <div id="charts">
     <div class="row content_row">
       <div class="small-2 columns">
         <form id="measure_form">
-          <div class="title">Measure</div><br/>
+          <div class="title">Mesure</div><br/>
         </form>
         <form id="granularity_form">
           <div class="title">Timeline</div><br/>
@@ -121,6 +115,7 @@
   <div id="footer-wrapper">
   
   	<div class="row">
+    <!--
   		<div class="small-12 medium-9 columns">
   		  <div id="search_container">
   		    <input type="text">
@@ -132,6 +127,7 @@
   			<p><a href="#">Other resources</a>
   			</p>
   		</div>
+    -->
   		
   		<!--contact area-->
   		
@@ -264,8 +260,8 @@
       }
 
       var aggregates = [ { name: "Représentation", reducer: reduceDistinct(function(d) { return d.register_id; }), checked: true },
-                         { name: "Recettes",     reducer: reduceSum(function(d)      { return d.sold * d.price; }), unit: "l." },
-                         { name: "Billets vendus",        reducer: reduceSum(function(d)      { return d.sold; }) } ];
+                         { name: "Recettes",       reducer: reduceSum(function(d)      { return d.sold * d.price; }), unit: "l." },
+                         { name: "Billets vendus", reducer: reduceSum(function(d)      { return d.sold; }), disabled: true } ];
 
       var granularities = [ { name: "Décennie", group: decade, ticks: [d3.time.year, 10] },
                             { name: "Année", group: d3.time.year, ticks: [d3.time.year, 5], checked: true },
@@ -274,187 +270,233 @@
 
     // set up crossfilter visualization
 
+    function progress(l, n, d) {
+      if (n && d) { n = d3.round(n/d * 100) + "%"; }
+      var msg = [l, n].join(" ");
+      d3.select("#progressbar").text(msg);
+      console.log(msg);
+    }
+
+    var tasks = function() { return; };
+    function task(msg, fn) {
+      var prev = tasks;
+      tasks = function() {
+        prev();
+        setTimeout(function() {
+          progress(msg);
+          fn();
+        }, 0);
+      }
+    }
+
     function visualize() {
 
       if (!sales || !playbill) { return; }
 
-      // the measure selection form & listener
-
-      var agg_labels = d3.select("#measure_form").selectAll("label")
-           .data(aggregates)
-          .enter().append("label");
-
-      agg_labels.append("input")
-              .attr("type", "radio")
-              .attr("name", "measure")
-              .attr("value", function(d) { return d.name; })
-              .property("checked", function(d) { return d.checked; });
-
-      agg_labels.append("span").text(function(d) { return d.name + (d.unit ? " (" + d.unit + ")" : ""); });
-
-      var checkedMeasure = function() {
-        var checked_name = d3.select("#measure_form input:checked").attr("value");
-        return aggregates.filter(function (d) { return d.name == checked_name; })[0];
-      };
-
-
-      // the granularity form & listener
-
-      var gran_labels = d3.select("#granularity_form").selectAll("label")
-           .data(granularities)
-          .enter().append("label");
-
-      gran_labels.append("input")
-              .attr("type", "radio")
-              .attr("name", "granularity")
-              .attr("value", function(d, i) { return i; })
-              .property("checked", function(d) { return d.checked; });
-
-      gran_labels.append("span").text(function(d) { return d.name; });
-
 
       // state for this visualization
 
-      var sale = crossfilter(sales),
+      var sale;
+      task("indexing", function () {
+        sale = crossfilter(sales);
+      });
 
+      var date, timelineAggs;
+      task("indexing date", function() {
           date = sale.dimension(function(d) { return d.date; }),
-          timelineAggs = granularities.map(function (agg) { return date.group(agg.group); }),
+          timelineAggs = granularities.map(function (agg) { return date.group(agg.group); });
+      });
 
+      var author, authorAgg;
+      task("indexing author", function() {
           author = sale.dimension(function(d) { return lookupAuthor(d.date, 0, "Inconnu"); }),
-          authorAgg = author.group(),
+          authorAgg = author.group();
+      });
 
+      var genre, genreAgg;
+      task("indexing genre", function() {
           genre = sale.dimension(function(d) { return lookupGenre(d.date, 0, "Inconnu"); }),
-          genreAgg = genre.group(),
+          genreAgg = genre.group();
+      });
 
+      var section, sectionAgg;
+      task("indexing section", function() {
           section = sale.dimension(function(d) { return d.section; }),
-          sectionAgg = section.group(),
+          sectionAgg = section.group();
+      });
 
+      var weekday, weekdayAgg;
+      task("indexing weekday", function() {
           weekday = sale.dimension(function(d) { return d.weekday; }),
           weekdayAgg = weekday.group();
+      });
 
-      var updateMeasure = function(agg) {
-        [authorAgg, genreAgg, sectionAgg, weekdayAgg].concat(timelineAggs).forEach(function (grp) {
-          grp.reduce(agg.reducer.add, agg.reducer.remove, agg.reducer.init).order(function (d) { return d.final(); });
+      task("", function() {
+
+        // the measure selection form & listener
+
+        var agg_labels = d3.select("#measure_form").selectAll("label")
+             .data(aggregates)
+            .enter().append("label");
+
+        agg_labels.append("input")
+                .attr("type", "radio")
+                .attr("name", "measure")
+                .attr("value", function(d) { return d.name; })
+                .property("checked", function(d) { return d.checked; })
+                .property("disabled", function(d) { return d.disabled; });
+
+        agg_labels.append("span").text(function(d) { return d.name + (d.unit ? " (" + d.unit + ")" : ""); });
+
+        var checkedMeasure = function() {
+          var checked_name = d3.select("#measure_form input:checked").attr("value");
+          return aggregates.filter(function (d) { return d.name == checked_name; })[0];
+        };
+
+
+        // the granularity form & listener
+
+        var gran_labels = d3.select("#granularity_form").selectAll("label")
+             .data(granularities)
+            .enter().append("label");
+
+        gran_labels.append("input")
+                .attr("type", "radio")
+                .attr("name", "granularity")
+                .attr("value", function(d, i) { return i; })
+                .property("checked", function(d) { return d.checked; });
+
+        gran_labels.append("span").text(function(d) { return d.name; });
+
+        var updateMeasure = function(agg) {
+          [authorAgg, genreAgg, sectionAgg, weekdayAgg].concat(timelineAggs).forEach(function (grp) {
+            grp.reduce(agg.reducer.add, agg.reducer.remove, agg.reducer.init).order(function (d) { return d.final(); });
+          });
+        };
+
+        // prime reducers with the default checked measure
+        updateMeasure(checkedMeasure());
+        d3.select("#measure_form").on("change", function () {
+          var agg = checkedMeasure();
+          updateMeasure(agg);
+          renderAll();
         });
-      };
 
-      // prime reducers with the default checked measure
-      updateMeasure(checkedMeasure());
-      d3.select("#measure_form").on("change", function () {
-        var agg = checkedMeasure();
-        console.log( "changing to " + agg.name);
-        updateMeasure(agg);
+        var charts = [
+
+          sparseChart()
+              .dimension(author)
+              .group(authorAgg),
+
+          sparseChart()
+              .dimension(genre)
+              .group(genreAgg),
+
+          sparseChart()
+              .dimension(section)
+              .group(sectionAgg)
+              .width(130),
+
+          sparseChart()
+              .dimension(weekday)
+              .group(weekdayAgg)
+              .order(function (a, b) {
+                // not clear why weekdayFormat.parse always returns mondays, and mangles other aspects...
+                var keyWD = { Lundi: 1, Mardi: 2, Mercredi: 3, Jeudi: 4, Vendredi: 5, Samedi: 6, Dimanche: 7 };
+                return keyWD[a] - keyWD[b];
+              })
+              .width(110),
+
+          timelineChart()
+              .dimension(date)
+
+        ];
+
+        var checkedGranularity = function() {
+          return d3.select("#granularity_form input:checked").attr("value");
+        };
+
+        var updateGranularity = function(agg_index) {
+          // TODO.  better way to reference timeline
+          // TODO.... now we're getting REALLY messy...
+          var agg = timelineAggs[agg_index];
+          var round = granularities[agg_index].group;
+          var tickInfo = granularities[agg_index].ticks;
+          var timeline = charts[4];
+          timeline.group(agg).x(d3.time.scale()
+                                  .domain(d3.extent(sales, function(d) { return d.date; }))
+                                  .rangeRound([0, d3.max([14 * agg.size(), 900])]))
+                  .ticks(tickInfo[0], tickInfo[1])
+                  .round(round);
+        };
+
+        // prime granularity
+        updateGranularity(checkedGranularity());
+        d3.select("#granularity_form").on("change", function () {
+          var i = checkedGranularity();
+          updateGranularity(i);
+          d3.select("#timeline").html("");
+          renderAll();
+        });
+
+        // set up rest of chart
+
+        var chart = d3.selectAll(".chart")
+          .data(charts)
+          .each(function(chart) { chart.on("brush", renderAll).on("brushend", renderAll); });
+
         renderAll();
+
+        function render(method) {
+          d3.select(this).call(method);
+        }
+
+        function renderAll() {
+          chart.each(render);
+        }
+
+        window.filter = function(filters) {
+          filters.forEach(function(d, i) { charts[i].filter(d); });
+          renderAll();
+        };
+
+        window.reset = function(i) {
+          charts[i].filter(null);
+          renderAll();
+        };
+
       });
 
-      var charts = [
-
-        sparseChart()
-            .dimension(author)
-            .group(authorAgg),
-
-        sparseChart()
-            .dimension(genre)
-            .group(genreAgg),
-
-        sparseChart()
-            .dimension(section)
-            .group(sectionAgg)
-            .width(130),
-
-        sparseChart()
-            .dimension(weekday)
-            .group(weekdayAgg)
-            .order(function (a, b) {
-              // not clear why weekdayFormat.parse always returns mondays, and mangles other aspects...
-              var keyWD = { Lundi: 1, Mardi: 2, Mercredi: 3, Jeudi: 4, Vendredi: 5, Samedi: 6, Dimanche: 7 };
-              return keyWD[a] - keyWD[b];
-            })
-            .width(110),
-
-        timelineChart()
-            .dimension(date)
-
-      ];
-
-      var checkedGranularity = function() {
-        return d3.select("#granularity_form input:checked").attr("value");
-      };
-
-      var updateGranularity = function(agg_index) {
-        // TODO.  better way to reference timeline
-        // TODO.... now we're getting REALLY messy...
-        var agg = timelineAggs[agg_index];
-        var round = granularities[agg_index].group;
-        var tickInfo = granularities[agg_index].ticks;
-        var timeline = charts[4];
-        timeline.group(agg).x(d3.time.scale()
-                                .domain(d3.extent(sales, function(d) { return d.date; }))
-                                .rangeRound([0, d3.max([14 * agg.size(), 900])]))
-                .ticks(tickInfo[0], tickInfo[1])
-                .round(round);
-      };
-
-      // prime granularity
-      updateGranularity(checkedGranularity());
-      d3.select("#granularity_form").on("change", function () {
-        var i = checkedGranularity();
-        updateGranularity(i);
-        d3.select("#timeline").html("");
-        renderAll();
-      });
-
-      // set up rest of chart
-
-      var chart = d3.selectAll(".chart")
-        .data(charts)
-        .each(function(chart) { chart.on("brush", renderAll).on("brushend", renderAll); });
-
-      renderAll();
-
-      function render(method) {
-        d3.select(this).call(method);
-      }
-
-      function renderAll() {
-        chart.each(render);
-      }
-
-      window.filter = function(filters) {
-        filters.forEach(function(d, i) { charts[i].filter(d); });
-        renderAll();
-      };
-
-      window.reset = function(i) {
-        charts[i].filter(null);
-        renderAll();
-      };
+      // start off the load
+      tasks();
     };
 
     // load data from server
 
-    d3.json("sales.json", function(error, data) { 
-      if (error) { throw error; };
-      data.forEach(function (d, i) {
-        d.date = dateFormat.parse(d.date);
-      })
-      sales = data;
-      visualize();
-    });
+    d3.json("sales.json")
+      .on("error", function(error) { throw error; })
+      .on("progress", function() { progress("downloading registers", d3.event.loaded, d3.event.total); })
+      .on("load", function(data) {
+        data.forEach(function (d, i) {
+          d.date = dateFormat.parse(d.date);
+        });
+        sales = data;
+        visualize();
+      }).get();
 
-    d3.json('playbill.json', function(error, data) { 
-      if (error) { throw error; };
-      playbillIdx = d3.map();
-      data.forEach(function (d, i) {
-        d.date = dateFormat.parse(d.date);
-
-        if (!playbillIdx.has(d.date)) { playbillIdx.set(d.date, []); }
-        playbillIdx.get(d.date).push(d);
-
-      })
-      playbill = data;
-      visualize(); 
-    });
+    d3.json("playbill.json")
+      .on("error", function(error) { throw error; })
+      .on("progress", function() { progress("downloading plays", d3.event.loaded, d3.event.total); })
+      .on("load", function(data) {
+        playbillIdx = d3.map();
+        data.forEach(function (d, i) {
+          d.date = dateFormat.parse(d.date);
+          if (!playbillIdx.has(d.date)) { playbillIdx.set(d.date, []); }
+          playbillIdx.get(d.date).push(d);
+        });
+        playbill = data;
+        visualize();
+      }).get();
 
 function sparseChart() {
   if (!sparseChart.id) sparseChart.id = 0;

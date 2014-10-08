@@ -5,6 +5,16 @@
   margin-top: 40px;
 } **/
 
+.titlebar {
+  background: rgba(254, 206, 60, 0.8)
+}
+
+#progressbar {
+  margin-bottom: 10px;
+  font: 8px sans-serif;
+  text-transform: uppercase;
+}
+
 form span {
   margin-left: 5px;
 }
@@ -15,6 +25,11 @@ form label {
 
 form {
   margin-bottom: 10px;
+}
+
+/* for billets vendus input */
+input[disabled] ~ span {
+  opacity: 0.2;
 }
 
 .chart {
