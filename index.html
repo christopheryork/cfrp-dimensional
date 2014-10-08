@@ -270,11 +270,17 @@
 
     // set up crossfilter visualization
 
+    var plabel = "",
+        pcount = 0;
     function progress(l, n, d) {
-      if (n && d) { n = d3.round(n/d * 100) + "%"; }
-      var msg = [l, n].join(" ");
-      d3.select("#progressbar").text(msg);
-      console.log(msg);
+      // Sadly, different browsers and servers send inconsistent values for xhr progress
+      // For now, ignore progress measures and just increment a counter...
+      if (l === plabel) {
+        pcount += 1;
+      } else {
+        plabel = l; pcount = 0;
+      }
+      d3.select("#progressbar").text(plabel + " " + (pcount > 0 ? pcount : ""));
     }
 
     var tasks = function() { return; };
@@ -475,7 +481,7 @@
 
     d3.json("sales.json")
       .on("error", function(error) { throw error; })
-      .on("progress", function() { progress("downloading registers", d3.event.loaded, d3.event.total); })
+      .on("progress", function() { progress("loading registers", d3.event.loaded, d3.event.total); })
       .on("load", function(data) {
         data.forEach(function (d, i) {
           d.date = dateFormat.parse(d.date);
@@ -486,7 +492,7 @@
 
     d3.json("playbill.json")
       .on("error", function(error) { throw error; })
-      .on("progress", function() { progress("downloading plays", d3.event.loaded, d3.event.total); })
+      .on("progress", function() { progress("loading plays", d3.event.loaded, d3.event.total); })
       .on("load", function(data) {
         playbillIdx = d3.map();
         data.forEach(function (d, i) {
