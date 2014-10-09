@@ -177,7 +177,10 @@
   <script src="d3.min.js"></script>
 
   <script>
+    /* jshint globalstrict: true */
     "use strict";
+    /* global d3, crossfilter, $, window, document, setTimeout */
+
     $(document).foundation();
 
     var dateFormat = d3.time.format('%Y-%m-%d');
@@ -186,87 +189,78 @@
         playbill,
         playbillIdx;
 
-      function reduceDistinct(fn) {
-        return {
-          add: function (p, d) {
-            var val = fn(d);
-            if (val in p.counts)
-              p.counts[val]++;
-            else
-              p.counts[val] = 1;
-            return p;
-          },
-          remove: function (p, d) {
-              var val = fn(d);
-              p.counts[val]--;
-              if (p.counts[val] === 0)
-                delete p.counts[val];
-              return p;
-          },
-          init: function () {
-            var p = {};
-            p.counts = {};
-            p.final = function() { return Object.keys(p.counts).length; };
-            return p;
-          }
+    function reduceDistinct(fn) {
+      return {
+        add: function (p, d) {
+          var val = fn(d);
+          if (val in p.counts)
+            p.counts[val]++;
+          else
+            p.counts[val] = 1;
+          return p;
+        },
+        remove: function (p, d) {
+          var val = fn(d);
+          p.counts[val]--;
+          if (p.counts[val] === 0)
+            delete p.counts[val];
+          return p;
+        },
+        init: function () {
+          var p = {};
+          p.counts = {};
+          p.final = function() { return Object.keys(p.counts).length; };
+          return p;
         }
-      }
-
-      function reduceSum(fn) {
-        return {
-          add: function(p, v) {
-            p.sum += fn(v);
-            return p;
-          },
-          remove: function(p, v) {
-            p.sum -= fn(v);
-            return p;
-          },
-          init: function() {
-            var p = {};
-            p.sum = 0;
-            p.final = function () { return Math.max(0, d3.round(p.sum, 0)); };
-            return p;
-          }
-        };
       };
+    }
 
-      /*
-        sale = crossfilter(sales);
-        date = sale.dimension( function (d) { return d.date; });
-        byYear = date.group(d3.time.year);
-        sum = aggregates[1].reducer;
-        byYear.reduce(sum.add, sum.remove, sum.init);
-        byYear.top(1)[0].value.final();
-      */
+    function reduceSum(fn) {
+      return {
+        add: function(p, v) {
+          p.sum += fn(v);
+          return p;
+        },
+        remove: function(p, v) {
+          p.sum -= fn(v);
+          return p;
+        },
+        init: function() {
+          var p = {};
+          p.sum = 0;
+          p.final = function () { return Math.max(0, d3.round(p.sum, 0)); };
+          return p;
+        }
+      };
+    }
 
-      function lookupAuthor(date, n, dflt) {
-        var pb = playbillIdx.get(date);
-        if (pb) { return pb[0].author }
-        else    { return dflt; }
-      }
+    function lookupAuthor(date, n, dflt) {
+      var pb = playbillIdx.get(date);
+      if (pb) { return pb[0].author; }
+      else    { return dflt; }
+    }
 
-      function lookupGenre(date, n, dflt) {
-        var pb = playbillIdx.get(date);
-        if (pb) { return pb[0].genre }
-        else    { return dflt; }
-      }
+    function lookupGenre(date, n, dflt) {
+      var pb = playbillIdx.get(date);
+      if (pb) { return pb[0].genre; }
+      else    { return dflt; }
+    }
 
-      function decade(date) {
-        var rounded = d3.time.year(date),
-            by10 = d3.round(date.getFullYear(), -1);
-        rounded.setFullYear(by10);
-        return rounded;
-      }
+    function decade(date) {
+      var rounded = d3.time.year(date),
+          by10 = d3.round(date.getFullYear(), -1);
+      rounded.setFullYear(by10);
+      return rounded;
+    }
 
-      var aggregates = [ { name: "Représentation", reducer: reduceDistinct(function(d) { return d.register_id; }), checked: true },
-                         { name: "Recettes",       reducer: reduceSum(function(d)      { return d.sold * d.price; }), unit: "l." },
-                         { name: "Billets vendus", reducer: reduceSum(function(d)      { return d.sold; }), disabled: true } ];
+    var aggregates = [ { name: "Représentation", reducer: reduceDistinct(function(d) { return d.register_id; }), checked: true },
+                       { name: "Recettes",       reducer: reduceSum(function(d)      { return d.sold * d.price; }), unit: "l." },
+                       { name: "Billets vendus", reducer: reduceSum(function(d)      { return d.sold; }), disabled: true } ];
 
-      var granularities = [ { name: "Décennie", group: decade, ticks: [d3.time.year, 10] },
-                            { name: "Année", group: d3.time.year, ticks: [d3.time.year, 5], checked: true },
-                            { name: "Mois", group: d3.time.month, ticks: [d3.time.month, 4] }, 
-                            { name: "Semaine", group: d3.time.week, ticks: [d3.time.month, 1] } ];
+    var granularities = [ { name: "Décennie", group: decade, ticks: [d3.time.year, 10] },
+                          { name: "Année", group: d3.time.year, ticks: [d3.time.year, 5], checked: true },
+                          { name: "Mois", group: d3.time.month, ticks: [d3.time.month, 4] },
+                          { name: "Semaine", group: d3.time.week, ticks: [d3.time.month, 1] } ];
 
     // set up crossfilter visualization
 
@@ -292,7 +286,7 @@
           progress(msg);
           fn();
         }, 0);
-      }
+      };
     }
 
     function visualize() {
@@ -309,31 +303,31 @@
 
       var date, timelineAggs;
       task("indexing date", function() {
-          date = sale.dimension(function(d) { return d.date; }),
+          date = sale.dimension(function(d) { return d.date; });
           timelineAggs = granularities.map(function (agg) { return date.group(agg.group); });
       });
 
       var author, authorAgg;
       task("indexing author", function() {
-          author = sale.dimension(function(d) { return lookupAuthor(d.date, 0, "Inconnu"); }),
+          author = sale.dimension(function(d) { return lookupAuthor(d.date, 0, "Inconnu"); });
           authorAgg = author.group();
       });
 
       var genre, genreAgg;
       task("indexing genre", function() {
-          genre = sale.dimension(function(d) { return lookupGenre(d.date, 0, "Inconnu"); }),
+          genre = sale.dimension(function(d) { return lookupGenre(d.date, 0, "Inconnu"); });
           genreAgg = genre.group();
       });
 
       var section, sectionAgg;
       task("indexing section", function() {
-          section = sale.dimension(function(d) { return d.section; }),
+          section = sale.dimension(function(d) { return d.section; });
           sectionAgg = section.group();
       });
 
       var weekday, weekdayAgg;
       task("indexing weekday", function() {
-          weekday = sale.dimension(function(d) { return d.weekday; }),
+          weekday = sale.dimension(function(d) { return d.weekday; });
           weekdayAgg = weekday.group();
       });
 
@@ -454,6 +448,7 @@
         renderAll();
 
         function render(method) {
+          /* jshint validthis:true */
           d3.select(this).call(method);
         }
 
@@ -475,7 +470,7 @@
 
       // start off the load
       tasks();
-    };
+    }
 
     // load data from server
 
@@ -533,12 +528,15 @@ function sparseChart() {
 
     x.domain([0, group.top(1)[0].value.final()]);
 
-    var y = function(d) { return d * (barHeight + textHeight); }
+    var y = function(d) { return d * (barHeight + textHeight); };
 
     div.each(function() {
       var div = d3.select(this),
+          scroller,
           g = div.select("g.results"),
 //          g_pinned = div.select("g.pinned"),
+          bar,
+          preview_circle,
           data = [];
 
       // a hairy way to resort the results so the pinned items rise to the top
@@ -581,13 +579,7 @@ function sparseChart() {
                        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 */
         // set up the normal results list
-        var bar = g.selectAll(".bar")
-             .data(data)
-           .enter().append("g")
-             .attr("class", "background bar")
-             .attr("transform", function (d, i) { return "translate(0," + y(i) + ")"; });
-
-        var scroller = div.append("div")
+        scroller = div.append("div")
               .attr("class", "scroller");
 
         g = scroller.append("svg")
@@ -597,13 +589,13 @@ function sparseChart() {
               .attr("class", "results")
               .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-        var bar = g.selectAll(".bar")
+        bar = g.selectAll(".bar")
              .data(data)
            .enter().append("g")
              .attr("class", "background bar")
              .attr("transform", function (d, i) { return "translate(0," + y(i) + ")"; });
 
-        var preview_circle = bar.append("circle")
+        preview_circle = bar.append("circle")
              .attr("class", "preview")
              .attr("cx", x.range()[1])
              .attr("cy", -4)
@@ -628,8 +620,7 @@ function sparseChart() {
                dimension.filterAll();
                dimension.filterFunction(filterPins);
                event_.brushend();
-            }
-          }, 1000);
+            }}, 1000);
         });
 
         bar.on("click", function (d) {
@@ -653,7 +644,7 @@ function sparseChart() {
              .attr("class", "measure")
            .append("text");
 
-      };
+      }
 
       function measure_info(d) {
         if (x(d.value.final()) - 4 > 35) {
@@ -677,7 +668,7 @@ function sparseChart() {
           .attr("transform", function (d, i) { return "translate(0," + y(i) + ")"; });
 */
       // results area
-      var bar = g.selectAll(".bar")
+      bar = g.selectAll(".bar")
                    .data(data)
                  .attr("class", function(d) { return "bar " + (pinned.has(d.key) ? "foreground" : "background"); });
 
@@ -702,26 +693,26 @@ function sparseChart() {
     dimension.filterAll();
     dimension.filterFunction(filterPins);
     return chart;
-  }
+  };
 
   chart.group = function(_) {
     if (!arguments.length) return group;
     group = _;
     return chart;
-  }
+  };
 
   chart.width = function(_) {
     if (!arguments.length) return width;
     width = _;
     x = d3.scale.linear().range([0, width]);
     return chart;
-  }
+  };
 
   chart.order = function(_) {
     if (!arguments.length) return order;
     order = _;
     return chart;
-  }
+  };
 
   return d3.rebind(chart, event_, "on");
 }
@@ -765,15 +756,19 @@ function timelineChart() {
 
     div.each(function() {
       var div = d3.select(this),
-          g = div.select("g");
+          scroller,
+          g = div.select("g"),
+          gBrush;
 
       // Create the skeletal chart.
       if (g.empty()) {
+/*
         div.select(".title").append("a")
             .attr("href", "javascript:reset(" + id + ")")
             .attr("class", "reset")
             .text("reset")
             .style("display", "none");
+*/
 
         div.select(".units").selectAll(".unit")
             .data(["volvo", "saab"])
@@ -782,10 +777,10 @@ function timelineChart() {
             .attr("value", function (d) { return d; })
             .text(function (d) { return d; });
 
-        var scroller = div.append("div")
+        scroller = div.append("div")
               .attr("class", "scroller");
 
-        var g = scroller.append("svg")
+        g = scroller.append("svg")
             .attr("width", width + margin.left + margin.right)
             .attr("height", height + margin.top + margin.bottom)
           .append("g")
@@ -838,7 +833,7 @@ function timelineChart() {
             .call(axis_x);
 
         // Initialize the brush component with pretty resize handles.
-        var gBrush = g.append("g").attr("class", "brush").call(brush);
+        gBrush = g.append("g").attr("class", "brush").call(brush);
         gBrush.selectAll("rect").attr("height", height);
         gBrush.selectAll(".resize").append("path").attr("d", resizePath);
       }
@@ -883,15 +878,15 @@ function timelineChart() {
       var e = +(d == "e"),
           x = e ? 1 : -1,
           y = height / 3;
-      return "M" + (.5 * x) + "," + y
-          + "A6,6 0 0 " + e + " " + (6.5 * x) + "," + (y + 6)
-          + "V" + (2 * y - 6)
-          + "A6,6 0 0 " + e + " " + (.5 * x) + "," + (2 * y)
-          + "Z"
-          + "M" + (2.5 * x) + "," + (y + 8)
-          + "V" + (2 * y - 8)
-          + "M" + (4.5 * x) + "," + (y + 8)
-          + "V" + (2 * y - 8);
+      return "M" + (0.5 * x) + "," + y +
+             "A6,6 0 0 " + e + " " + (6.5 * x) + "," + (y + 6) +
+             "V" + (2 * y - 6) +
+             "A6,6 0 0 " + e + " " + (0.5 * x) + "," + (2 * y) +
+             "Z" +
+             "M" + (2.5 * x) + "," + (y + 8) +
+             "V" + (2 * y - 8) +
+             "M" + (4.5 * x) + "," + (y + 8) +
+             "V" + (2 * y - 8);
       }
     }
 
@@ -939,7 +934,7 @@ function timelineChart() {
     chart.ticks = function(a, b) {
       axis_x.ticks(a, b);
       return chart;
-    }
+    };
 
     chart.y = function(_) {
       if (!arguments.length) return y;
