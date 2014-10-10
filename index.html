@@ -377,6 +377,7 @@
         d3.select("#measure_form").on("change", function () {
           var agg = checkedMeasure();
           updateMeasure(agg);
+          charts.forEach(function (c) { c.immediate(true); });
           renderAll();
         });
 
@@ -671,9 +672,6 @@ function sparseChart() {
                    .data(data)
                  .attr("class", function(d) { return "bar " + (pinned.has(d.key) ? "foreground" : "background"); });
 
-      bar.select("path")
-           .attr("d", function(d) { return "M0,2H" + x(d.value.final()) + "v" + barHeight + "H0";});
-
       bar.select(".author_name text")
            .text(function (d) { return d.key; });
 
@@ -683,6 +681,12 @@ function sparseChart() {
            .attr("class", function(d) { return measure_info(d).anchor; })
            .attr("text-anchor", function(d) { return measure_info(d).anchor; })
            .text(function (d) { return commasFormatter(d.value.final()); });
+
+        bar.select("path")
+           .attr("d", function(d) { return "M0,2H" + x(d.value.final()) + "v" + barHeight + "H0";});
+
+      // if rescaling in the future, schedule the event
+      // ... code omitted for later
     });
   }
 
@@ -713,6 +717,11 @@ function sparseChart() {
     return chart;
   };
 
+  chart.immediate = function(_) {
+    // code omitted for later; no-op
+    return true;
+  };
+
   return d3.rebind(chart, event_, "on");
 }
 
@@ -730,7 +739,10 @@ function timelineChart() {
       brushDirty,
       dimension,
       group,
-      round;
+      round,
+      animate = false,
+      delay_rescale = false,
+      timestamp;
 
   var customTimeFormat = d3.time.format.multi([
     ["%a %d", function(d) { return d.getDay() && d.getDate() != 1; }],
@@ -745,7 +757,12 @@ function timelineChart() {
 
     var commasFormatter = d3.format(",.0f");
 
-    y.domain([0, group.top(1)[0].value.final()]);
+    var max = group.top(1)[0].value.final();
+
+    if (!delay_rescale || !timestamp) {
+      y.domain([0, max]);
+    }
+    timestamp = Date.now();
 
     axis_y.scale(y)
           .tickFormat(function(d) { return commasFormatter(d); })
@@ -761,20 +778,6 @@ function timelineChart() {
 
       // Create the skeletal chart.
       if (g.empty()) {
-/*
-        div.select(".title").append("a")
-            .attr("href", "javascript:reset(" + id + ")")
-            .attr("class", "reset")
-            .text("reset")
-            .style("display", "none");
-*/
-
-        div.select(".units").selectAll(".unit")
-            .data(["volvo", "saab"])
-          .enter().append("option")
-            .attr("class", "unit")
-            .attr("value", function (d) { return d; })
-            .text(function (d) { return d; });
 
         scroller = div.append("div")
               .attr("class", "scroller");
@@ -854,11 +857,32 @@ function timelineChart() {
         }
       }
 
-      // this actually redraws the bars
-      g.selectAll(".bar").attr("d", barPath);
+      // this actually draws the new state
 
-      // update the units axis too
-      g.select(".axis.y").call(axis_y);
+      if (animate) {
+        g.selectAll(".bar").transition().duration(1500).attr("d", barPath);
+        g.select(".axis.y").transition().duration(1500).call(axis_y);
+      } else {
+        g.selectAll(".bar").attr("d", barPath);
+        g.select(".axis.y").call(axis_y);
+      }
+
+      // if rescaling in the future, schedule the event
+      if (delay_rescale) {
+        var old_timestamp = timestamp,
+            delay_ms = max > y.domain()[1] ? 500 : 2000;
+        setTimeout(function() {
+          // if component hasn't been updated again, animate to the new scale
+          if (timestamp === old_timestamp) {
+            animate = true;
+            delay_rescale = false;
+            chart(div);
+          }
+        }, delay_ms);
+      }
+
+      animate = false;
+      delay_rescale = true;
     });
 
     function barPath(groups) {
@@ -969,6 +993,13 @@ function timelineChart() {
       if (!arguments.length) return round;
       round = _;
       return chart;
+    };
+
+    chart.immediate = function(_) {
+      if (!arguments.length) return !(animate || delay_rescale);
+      animate = ! _;
+      delay_rescale = ! _;
+      return !(animate || delay_rescale);
     };
 
     return d3.rebind(chart, brush, "on");
