@@ -113,30 +113,22 @@
   <!--BEGIN FOOTER-->
   
   <div id="footer-wrapper">
-  
-  	<div class="row">
-    <!--
-  		<div class="small-12 medium-9 columns">
-  		  <div id="search_container">
-  		    <input type="text">
-  		  </div>
-  			<p><a href="#">Bibliography</a>
-  			</p>
-  			<p><a href="#">Acknowledgements</a>
-  			</p>
-  			<p><a href="#">Other resources</a>
-  			</p>
-  		</div>
-    -->
+
+   <!-- usage information -->
+
+   <div class="row">
   		
   		<!--contact area-->
   		
   		<div class="small-12 medium-3 columns">
+        <p>DATA<br>
+        Current as of 10-Oct-2014
+        </p>
   			<p>CONTACT<br>
-  			<a href="#">info@emailaddress.com</a>
+        <a href="#">christopher.w.york&nbsp;(at)&nbsp;gmail.com</a>
   			</p>
   			
-  			<!-- email signup -->
+        <!-- email signup
   			<form>
   				<div class="row collapse">
   					<div class="small-10 columns">
@@ -147,8 +139,14 @@
 		  			</div>
   				</div>
   			</form>
+        -->
   			
   		</div>
+
+      <div class="small-12 medium-3 columns">
+        <p>This demo is intended for use on Chrome (version 38.0+), on OS X 10.9+ or Windows 7+ with at least 2GB of memory.</p>
+        <p>If the page does not load, check your browser and OS details.</p>
+      </div>
   		
   	</div>
   	
@@ -518,8 +516,8 @@ function sparseChart() {
       event_ = d3.dispatch("brush", "brushend");
 
   function filterPins(d) {
-    return pinned.has(d) || (preview ? d === preview : pinned.empty());
-//    return preview ? (d === preview) : (pinned.has(d) || pinned.empty());
+//    return pinned.has(d) || (preview ? d === preview : pinned.empty());
+    return pinned.has(d) || pinned.empty();
   }
 
   function chart(div) {
@@ -599,27 +597,28 @@ function sparseChart() {
              .attr("class", "preview")
              .attr("cx", x.range()[1])
              .attr("cy", -4)
-             .attr("r", 3);
+             .attr("stroke-width", 4)
+             .attr("r", 5);              // effective size is 3 pixels (r - 1/2 of stroke width)
 
         preview_circle.on("mouseover", function (d) {
-          preview_circle.attr("class", "preview");
-          d3.select(this).attr("class", "preview active");
+          div.classed("previewing", true);
+          preview_circle.classed("active", false);
+          d3.select(this).classed("active", true);
           preview = d.key;
-          dimension.filterAll();
-          dimension.filterFunction(filterPins);
+          dimension.filterExact(d.key);
           event_.brush();
         });
 
         preview_circle.on("mouseout", function (d) {
-          // wait 2 seconds, then if no new preview set, return to default filters
+          // wait 1 second, then if no new preview set, return to default filters
           var old_preview = preview;
           window.setTimeout(function () {
-            if (preview == old_preview) {
-               preview_circle.attr("class", "preview");
-               preview = false;
-               dimension.filterAll();
-               dimension.filterFunction(filterPins);
-               event_.brushend();
+            if (preview === old_preview) {
+              div.classed("previewing", false);
+              preview_circle.classed("active", false);
+              preview = false;
+              dimension.filterFunction(filterPins);
+              event_.brushend();
             }}, 1000);
         });
 
@@ -629,7 +628,7 @@ function sparseChart() {
           } else {
             pinned.add(d.key);
           }
-          dimension.filterAll();
+//          dimension.filterAll();
           dimension.filterFunction(filterPins);
           scroller[0][0].scrollTop = 0;
           event_.brushend();

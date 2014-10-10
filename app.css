@@ -56,6 +56,10 @@ input[disabled] ~ span {
   fill: #ffbb78;
 }
 
+.previewing .foreground.bar {
+  fill: #ccc;
+}
+
 .bar {
   cursor: pointer;
 }
@@ -132,11 +136,11 @@ input[disabled] ~ span {
 }
 
 .preview.active {
-  fill: #ffbb78;
+  fill: red;
 }
 
 .preview {
-  stroke: none;
+  stroke: white;  /* creates invisible surrounding area that's easier to hover over */
   fill: #aaa;
 }
 
